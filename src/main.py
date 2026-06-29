@@ -200,34 +200,44 @@ async def get_buscador(
         porcentaje_coincidencia = 0.0
         ultima_actualizacion = "Desconocida"
 
+    ya_marcado = request.query_params.get("marcado") == "true"
+    log_id = None
+
     # Procesar búsqueda
     if search_term:
         buscado = True
         try:
             # Consulta exacta contra la colección bienes
             resultado = await db.bienes.find_one({"numero_bien": search_term})
-            coincidio = (resultado is not None)
             
-            # Registrar auditoría obligatoriamente en segundo plano
-            log_doc = {
-                "valor_buscado": search_term,
-                "fecha_consulta": datetime.now(timezone.utc),
-                "coincidio": coincidio,
-                "metadata_cliente": {
-                    "ip": request.client.host,
-                    "user_agent": request.headers.get("user-agent", "Desconocido")
+            skip_log = request.query_params.get("skip_log") == "true"
+            
+            if not skip_log:
+                # Registrar auditoría obligatoriamente en segundo plano
+                # Por requerimiento, inicialmente se guarda como coincidio = False (no exitoso)
+                # hasta que el operador señale el bien marcado mediante el botón.
+                log_doc = {
+                    "valor_buscado": search_term,
+                    "fecha_consulta": datetime.now(timezone.utc),
+                    "coincidio": False,
+                    "metadata_cliente": {
+                        "ip": request.client.host,
+                        "user_agent": request.headers.get("user-agent", "Desconocido")
+                    }
                 }
-            }
-            
-            # VETO-01: Prohibido omitir el guardado en el historial bajo cualquier condición
-            try:
-                await db.historial_consultas.insert_one(log_doc)
-            except Exception as log_err:
-                logger.critical(f"FALLO CRÍTICO: No se pudo escribir en la bitácora de auditoría: {log_err}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Error crítico del servidor: Fallo en la persistencia del registro de auditoría. Búsqueda abortada."
-                )
+                
+                # VETO-01: Prohibido omitir el guardado en el historial bajo cualquier condición
+                try:
+                    insert_result = await db.historial_consultas.insert_one(log_doc)
+                    log_id = str(insert_result.inserted_id)
+                except Exception as log_err:
+                    logger.critical(f"FALLO CRÍTICO: No se pudo escribir en la bitácora de auditoría: {log_err}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Error crítico del servidor: Fallo en la persistencia del registro de auditoría. Búsqueda abortada."
+                    )
+            else:
+                log_id = request.query_params.get("log_id")
                 
             # Formatear ID a string
             if resultado:
@@ -253,7 +263,9 @@ async def get_buscador(
             "total_bienes": format_spanish_number(total_bienes),
             "total_consultas": format_spanish_number(total_consultas),
             "porcentaje_coincidencia": porcentaje_coincidencia,
-            "ultima_actualizacion": ultima_actualizacion
+            "ultima_actualizacion": ultima_actualizacion,
+            "log_id": log_id,
+            "ya_marcado": ya_marcado
         }
     )
 
@@ -296,6 +308,64 @@ async def post_logout():
     response.delete_cookie(key=auth.COOKIE_NAME)
     logger.info("Sesión cerrada correctamente.")
     return response
+
+@app.post("/marcar-exitoso")
+async def post_marcar_exitoso(
+    request: Request,
+    log_id: str = Form(...),
+    numero_bien: str = Form(...)
+):
+    db = database.get_db()
+    try:
+        obj_id = ObjectId(log_id)
+        result = await db.historial_consultas.update_one(
+            {"_id": obj_id},
+            {"$set": {"coincidio": True}}
+        )
+        if result.modified_count > 0:
+            logger.info(f"Registro de consulta {log_id} para bien {numero_bien} marcado como exitoso.")
+            return RedirectResponse(
+                url=f"/?numero_bien={numero_bien}&exito=El+bien+Nº+{numero_bien}+ha+sido+marcado+como+exitoso&skip_log=true&marcado=true",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+        else:
+            logger.warning(f"No se modificó el registro {log_id} (tal vez ya era exitoso).")
+            return RedirectResponse(
+                url=f"/?numero_bien={numero_bien}&exito=El+bien+Nº+{numero_bien}+ya+estaba+marcado+como+exitoso&skip_log=true&marcado=true",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+    except Exception as e:
+        logger.error(f"Error al marcar consulta como exitosa: {e}")
+        return RedirectResponse(
+            url=f"/?numero_bien={numero_bien}&error=Error+al+marcar+el+bien+como+exitoso&skip_log=true",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+@app.post("/admin/marcar-exitoso")
+async def post_admin_marcar_exitoso(
+    request: Request,
+    log_id: str = Form(...),
+    username: str = Depends(auth.get_current_admin)
+):
+    db = database.get_db()
+    try:
+        obj_id = ObjectId(log_id)
+        log_entry = await db.historial_consultas.find_one({"_id": obj_id})
+        if not log_entry:
+            return RedirectResponse(url="/admin?error=Registro+no+encontrado", status_code=status.HTTP_303_SEE_OTHER)
+            
+        await db.historial_consultas.update_one(
+            {"_id": obj_id},
+            {"$set": {"coincidio": True}}
+        )
+        logger.info(f"Administrador {username} marcó consulta {log_id} ({log_entry.get('valor_buscado')}) como exitosa.")
+        return RedirectResponse(
+            url=f"/admin?exito=Registro+de+bien+{log_entry.get('valor_buscado')}+marcado+como+exitoso+manualmente.",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    except Exception as e:
+        logger.error(f"Error al marcar consulta desde admin: {e}")
+        return RedirectResponse(url="/admin?error=Error+al+marcar+el+registro", status_code=status.HTTP_303_SEE_OTHER)
 
 # ---------------------------------------------------------
 # RUTAS DE ADMINISTRACIÓN (PROTEGIDAS)

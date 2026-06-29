@@ -185,7 +185,13 @@
                     {% if log.coincidio %}
                       <span class="status-badge status-match">ÉXITO</span>
                     {% else %}
-                      <span class="status-badge status-no-match">FALLIDO</span>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="status-badge status-no-match">FALLIDO</span>
+                        <form action="/admin/marcar-exitoso" method="post" style="display: inline-block; margin: 0;">
+                          <input type="hidden" name="log_id" value="{{ log._id }}">
+                          <button type="submit" class="btn-admin-success" title="Marcar como exitoso">✓ Marcar</button>
+                        </form>
+                      </div>
                     {% endif %}
                   </td>
                   <td class="cell-ip font-monospace">

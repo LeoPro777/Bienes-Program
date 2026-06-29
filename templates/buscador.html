@@ -147,6 +147,20 @@
                  <span class="detail-val">{{ resultado.descripcion }}</span>
                </div>
             </div>
+
+            {% if ya_marcado %}
+              <div class="verification-status-box">
+                <span>✓ Este bien ha sido verificado en la auditoría con éxito.</span>
+              </div>
+            {% elif log_id %}
+              <form action="/marcar-exitoso" method="post" class="mark-form" style="width: 100%;">
+                <input type="hidden" name="log_id" value="{{ log_id }}">
+                <input type="hidden" name="numero_bien" value="{{ resultado.numero_bien }}">
+                <button type="submit" class="btn-success">
+                  ✓ Señalar como Bien Marcado
+                </button>
+              </form>
+            {% endif %}
             
             <div class="audit-badge-footer">
               <span class="pulse-indicator"></span> Consulta registrada de forma inmutable en la bitácora de auditoría.
