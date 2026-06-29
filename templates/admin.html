@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Auditoría y Gestión Masiva - Control de Bienes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=1.0.5">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <script>
+    function applyTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      const btn = document.getElementById('btn-size-toggle');
+      if (isLarge) {
+        document.documentElement.classList.add('large-text');
+        if (btn) btn.textContent = '🔍 Texto Normal';
+      } else {
+        document.documentElement.classList.remove('large-text');
+        if (btn) btn.textContent = '🔍 Texto Grande';
+      }
+    }
+
+    function toggleTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      localStorage.setItem('large-text', !isLarge);
+      applyTextSize();
+    }
+
+    applyTextSize();
+    document.addEventListener('DOMContentLoaded', applyTextSize);
+  </script>
+</head>
+<body>
+
+  <header>
+    <div class="header-top">
+      <a href="/" class="logo">
+        <span class="logo-icon"></span>
+        Control de Bienes
+      </a>
+      <div class="nav-actions">
+        <button onclick="toggleTextSize()" class="btn-nav btn-accessibility" id="btn-size-toggle">🔍 Texto Grande</button>
+        <a href="/" class="btn-nav">Ir al Buscador</a>
+        <form action="/logout" method="post" style="display:inline;">
+          <button type="submit" class="btn-nav btn-logout">Cerrar Sesión</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <!-- Título de Sección -->
+    <div class="admin-title-row">
+      <div>
+        <h1 class="admin-main-title">Panel de Control Operativo</h1>
+        <p class="admin-subtitle">Sesión iniciada como operador: <strong>{{ username }}</strong></p>
+      </div>
+    </div>
+
+    <!-- Mensajes de Éxito / Error -->
+    {% if exito %}
+      <div class="alert alert-success">
+        <strong>✓ Completado:</strong> {{ exito }}
+      </div>
+    {% endif %}
+    {% if error_msg %}
+      <div class="alert alert-error">
+        <strong>⚠ Error:</strong> {{ error_msg }}
+      </div>
+    {% endif %}
+
+    <!-- Grid de Métricas de Auditoría -->
+    <div class="admin-metrics-grid">
+      <div class="metric-card">
+        <div class="metric-val text-neon-blue">{{ total_bienes }}</div>
+        <div class="metric-title">Bienes Registrados</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val text-neon-green">{{ consultas_exitosas }}</div>
+        <div class="metric-title">Búsquedas Exitosas</div>
+      </div>
+      <div class="metric-card highlight-danger">
+        <div class="metric-val text-neon-red">{{ consultas_fallidas }}</div>
+        <div class="metric-title">Búsquedas Fallidas</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{{ total_consultas }}</div>
+        <div class="metric-title">Consultas Totales</div>
+      </div>
+    </div>
+
+    <!-- Fila de Carga y Acciones Rápidas -->
+    <div class="admin-operations-row">
+      <!-- Carga Masiva -->
+      <section class="admin-section upload-section">
+        <h2>Carga de Inventario (Excel / CSV)</h2>
+        <p class="section-desc">Arrastre o seleccione el archivo con las columnas <code>ITEM</code>, <code>Nº DE BIEN</code>, <code>DESCRIPCIÓN</code> y <code>ÁREA DE UBICACIÓN</code>.</p>
+        
+        <form action="/admin/cargar-bienes" method="post" enctype="multipart/form-data" class="upload-form">
+          <label class="upload-zone" id="drop-zone">
+            <span class="upload-icon">📥</span>
+            <span class="upload-text"><strong>Haga clic para subir</strong> o arrastre el archivo aquí</span>
+            <span class="file-name-display" id="file-name-display">Ningún archivo seleccionado</span>
+            <input type="file" name="file" accept=".xlsx, .xls, .csv" class="file-input" id="file-input" required onchange="displayFileName()">
+          </label>
+          <button type="submit" class="btn-primary btn-upload">Procesar e Inyectar Datos</button>
+        </form>
+
+        {% if errores %}
+          <div class="error-summary-box">
+            <h3>Se detectaron {{ rejected_count or errores|length }} errores de inconsistencia:</h3>
+            <div class="error-list">
+              {% for err in errores %}
+                <div class="error-item">
+                  <strong>Fila {{ err.fila }}:</strong> (Bien: {{ err.nombre_persona }}) - {{ err.error }}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Respaldos y Vaciar -->
+      <section class="admin-section maintenance-section">
+        <h2>Operaciones del Sistema</h2>
+        <p class="section-desc">Mantenimiento de los registros del inventario de bienes.</p>
+        
+        <div class="maintenance-buttons">
+          <a href="/admin/descargar-datos" class="btn-secondary btn-download-backup">
+            📥 Descargar Backup (JSON)
+          </a>
+          
+          <form action="/admin/restaurar-datos" method="post" enctype="multipart/form-data" class="restore-form" onsubmit="return confirm('¿Seguro que desea restaurar los bienes? Se vaciará la lista actual antes de importar el backup.');">
+            <label class="btn-secondary btn-file-label">
+              📤 Seleccionar Backup JSON
+              <input type="file" name="backup_file" accept=".json" required class="hidden-file-input" onchange="this.form.submit()">
+            </label>
+          </form>
+
+          <form action="/admin/vaciar-bienes" method="post" onsubmit="return confirm('ATENCIÓN: ¿Seguro que desea eliminar TODOS los bienes del inventario? El historial de consultas de auditoría no se verá afectado.');">
+            <button type="submit" class="btn-danger">
+              ⚠️ Vaciar Inventario de Bienes
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bitácora de Consultas -->
+    <section class="admin-section audit-trail-section">
+      <div class="section-header-row">
+        <h2>Historial de Auditoría (Bitácora Append-Only)</h2>
+        <span class="audit-badge-status">Inmutable</span>
+      </div>
+      <p class="section-desc">Listado cronológico de las últimas 150 consultas realizadas al buscador público.</p>
+
+      <div class="table-container">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Bien Buscado</th>
+              <th>Fecha y Hora</th>
+              <th>Coincidencia</th>
+              <th>Dirección IP</th>
+              <th>User-Agent / Navegador</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if historial %}
+              {% for log in historial %}
+                <tr class="{% if not log.coincidio %}row-unmatched{% else %}row-matched{% endif %}">
+                  <td class="cell-bien font-outfit">
+                    {% if not log.coincidio %}
+                      <span class="glow-alert">⚠️ {{ log.valor_buscado }}</span>
+                    {% else %}
+                      <span class="glow-success">✓ {{ log.valor_buscado }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="cell-date">
+                    {{ log.fecha_consulta|format_datetime }}
+                  </td>
+                  <td>
+                    {% if log.coincidio %}
+                      <span class="status-badge status-match">ÉXITO</span>
+                    {% else %}
+                      <span class="status-badge status-no-match">FALLIDO</span>
+                    {% endif %}
+                  </td>
+                  <td class="cell-ip font-monospace">
+                    {{ log.metadata_cliente.ip or 'Desconocida' }}
+                  </td>
+                  <td class="cell-ua" title="{{ log.metadata_cliente.user_agent }}">
+                    {{ log.metadata_cliente.user_agent }}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" class="table-empty">Sin consultas registradas en la bitácora aún.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+        <p class="hope-message">"Seguridad, consistencia y trazabilidad de los activos institucionales."</p>
+        <p class="footer-info">© 2026 Sistema de Control de Bienes e Historial de Auditorías · Monolito Resiliente</p>
+    </div>
+  </footer>
+
+  <script>
+    function displayFileName() {
+      const input = document.getElementById('file-input');
+      const display = document.getElementById('file-name-display');
+      if (input.files && input.files.length > 0) {
+        display.textContent = input.files[0].name;
+      } else {
+        display.textContent = 'Ningún archivo seleccionado';
+      }
+    }
+
+    // Drag and Drop files handling
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    if (dropZone) {
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+        }, false);
+      });
+
+      dropZone.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+          fileInput.files = files;
+          displayFileName();
+        }
+      }, false);
+    }
+  </script>
+</body>
+</html>

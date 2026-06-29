@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador de Activos e Historial de Auditoría</title>
+
+  <meta name="description" content="Plataforma ultra-ligera y de alta velocidad para la localización y auditoría en sitio de activos físicos institucionales.">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=1.0.5">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <script>
+    function applyTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      const btn = document.getElementById('btn-size-toggle');
+      if (isLarge) {
+        document.documentElement.classList.add('large-text');
+        if (btn) btn.textContent = '🔍 Texto Normal';
+      } else {
+        document.documentElement.classList.remove('large-text');
+        if (btn) btn.textContent = '🔍 Texto Grande';
+      }
+    }
+
+    function toggleTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      localStorage.setItem('large-text', !isLarge);
+      applyTextSize();
+    }
+
+    applyTextSize();
+    document.addEventListener('DOMContentLoaded', applyTextSize);
+  </script>
+</head>
+<body>
+
+  <header>
+    <div class="header-top">
+      <a href="/" class="logo">
+        <span class="logo-icon"></span>
+        Control de Bienes
+      </a>
+      <div class="nav-actions">
+        <button onclick="toggleTextSize()" class="btn-nav btn-accessibility" id="btn-size-toggle">🔍 Texto Grande</button>
+        {% if autenticado %}
+          <a href="/admin" class="btn-nav">Panel Admin</a>
+          <form action="/logout" method="post" style="display:inline;">
+            <button type="submit" class="btn-nav btn-logout">Cerrar Sesión</button>
+          </form>
+        {% else: %}
+          <a href="/login" class="btn-nav btn-login">Acceso Operador</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="search-box">
+      <h1 class="main-title">Verificación de Activos Físicos</h1>
+      <p class="subtitle">
+        Ingrese el identificador del activo para verificar su ubicación y registrar la auditoría en tiempo real.
+      </p>
+      
+      <form action="/" method="get" class="search-form">
+        <div class="search-input-wrapper">
+          <input 
+            type="text" 
+            name="numero_bien" 
+            class="search-input" 
+            placeholder="Ingrese el Nº DE BIEN (Ej. 8, 45, etc.)" 
+            value="{{ numero_bien or '' }}"
+            required
+            autocomplete="off"
+            autofocus
+          >
+        </div>
+        <button type="submit" class="btn-search">Verificar Bien</button>
+      </form>
+    </section>
+
+    <!-- Grid de Estadísticas Dinámicas -->
+    <div class="stats-grid">
+      <div class="stat-card stat-registrados">
+        <div class="stat-value">{{ total_bienes }}</div>
+        <div class="stat-label">Bienes Inventariados</div>
+      </div>
+      <div class="stat-card stat-actualizacion">
+        <div class="stat-value">{{ porcentaje_coincidencia }}%</div>
+        <div class="stat-label">Coincidencia Histórica</div>
+      </div>
+      <div class="stat-card stat-hospitales">
+        <div class="stat-value">{{ total_consultas }}</div>
+        <div class="stat-label">Consultas Auditadas</div>
+      </div>
+    </div>
+
+    <!-- Alertas de Éxito / Error -->
+    {% if exito %}
+      <div class="alert alert-success">
+        <strong>✓ Éxito:</strong> {{ exito }}
+      </div>
+    {% endif %}
+    {% if error_msg %}
+      <div class="alert alert-error">
+        <strong>⚠ Error:</strong> {{ error_msg }}
+      </div>
+    {% endif %}
+    {% if error_busqueda %}
+      <div class="alert alert-error">
+        {{ error_busqueda }}
+      </div>
+    {% endif %}
+
+    <!-- Contenedor de Resultados -->
+    <div class="results-container">
+      {% if buscado and not error_busqueda %}
+        {% if resultado %}
+          <div class="card result-card-success">
+            <div class="card-header">
+              <div class="patient-name">
+                Bien Nº {{ resultado.numero_bien }}
+              </div>
+              <span class="status-badge status-match">Registrado</span>
+            </div>
+            
+            <div class="card-details">
+               {% if resultado.item is not none %}
+                 <div class="detail-row">
+                   <span class="detail-title">ITEM:</span>
+                   <span class="detail-val">#{{ resultado.item }}</span>
+                 </div>
+               {% endif %}
+               
+               <div class="detail-row">
+                 <span class="detail-title">ÁREA DE UBICACIÓN:</span>
+                 <span class="detail-val highlight-location">{{ resultado.area_ubicacion }}</span>
+               </div>
+               
+               <div class="detail-row">
+                 <span class="detail-title">DESCRIPCIÓN:</span>
+                 <span class="detail-val">{{ resultado.descripcion }}</span>
+               </div>
+            </div>
+            
+            <div class="audit-badge-footer">
+              <span class="pulse-indicator"></span> Consulta registrada de forma inmutable en la bitácora de auditoría.
+            </div>
+          </div>
+        {% else %}
+          <div class="card result-card-fail">
+            <div class="card-header">
+              <div class="patient-name text-error">
+                Activo No Registrado
+              </div>
+              <span class="status-badge status-no-match">Inexistente</span>
+            </div>
+            
+            <div class="card-details">
+              <div class="alert-fail-box">
+                <p><strong>El Nº de Bien "{{ numero_bien }}" no se encuentra en la base de datos de activos.</strong></p>
+                <p class="fail-explanation">
+                  Esta consulta ha sido capturada por el sistema de seguridad e inyectada automáticamente en el historial de auditoría con propósitos de rastreo y bitácora de control.
+                </p>
+              </div>
+            </div>
+            
+            <div class="audit-badge-footer">
+              <span class="pulse-indicator pulse-fail"></span> Evento de búsqueda reportado e insertado atómicamente.
+            </div>
+          </div>
+        {% endif %}
+      {% elif not buscado %}
+        <div class="welcome-box">
+          <div class="welcome-icon">📋</div>
+          <h2>Consulte el Inventario General</h2>
+          <p>
+            Introduzca el número de bien en el buscador superior. Cada consulta realizada es registrada y enlazada de forma inmutable con su dirección IP y metadatos de sesión por motivos de auditoría institucional.
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+        <p class="hope-message">"Trazabilidad garantizada para el resguardo de activos."</p>
+        <p class="footer-info">© 2026 Sistema de Control de Bienes e Historial de Auditorías · Monolito Resiliente</p>
+    </div>
+  </footer>
+
+</body>
+</html>

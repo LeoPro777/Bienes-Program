@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso del Operador - Control de Bienes e Historial de Auditoría</title>
+  <link rel="stylesheet" href="/static/style.css?v=1.0.5">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <script>
+    function applyTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      const btn = document.getElementById('btn-size-toggle');
+      if (isLarge) {
+        document.documentElement.classList.add('large-text');
+        if (btn) btn.textContent = '🔍 Texto Normal';
+      } else {
+        document.documentElement.classList.remove('large-text');
+        if (btn) btn.textContent = '🔍 Texto Grande';
+      }
+    }
+
+    function toggleTextSize() {
+      const isLarge = localStorage.getItem('large-text') === 'true';
+      localStorage.setItem('large-text', !isLarge);
+      applyTextSize();
+    }
+
+    applyTextSize();
+    document.addEventListener('DOMContentLoaded', applyTextSize);
+  </script>
+</head>
+<body>
+
+  <header class="custom-header-container">
+    <div class="header-top">
+      <a href="/" class="logo">
+        <span class="logo-icon"></span>
+        Control de Bienes
+      </a>
+      <div class="nav-actions">
+        <button onclick="toggleTextSize()" class="btn-nav btn-accessibility" id="btn-size-toggle">🔍 Texto Grande</button>
+        <a href="/" class="btn-nav">Volver al Buscador</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="login-container">
+      <div class="login-header">
+        <h1>Acceso del Operador</h1>
+        <p>
+          Inicie sesión con las credenciales maestras para gestionar el inventario de bienes y auditar el historial de consultas.
+        </p>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-error">
+          {{ error }}
+        </div>
+      {% endif %}
+
+      <form action="/login" method="post" class="login-form">
+        <div class="form-group">
+          <label for="username">Usuario Operador</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            class="form-input" 
+            required 
+            placeholder="Ingrese el usuario"
+            autocomplete="username"
+            autofocus
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            class="form-input" 
+            required 
+            placeholder="••••••••"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn-primary">Iniciar Sesión</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+        <p class="hope-message">"Seguridad, consistencia y trazabilidad de los activos institucionales."</p>
+        <p class="footer-info">© 2026 Sistema de Control de Bienes e Historial de Auditorías · Monolito Resiliente</p>
+    </div>
+  </footer>
+
+</body>
+</html>
