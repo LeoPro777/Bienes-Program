@@ -863,9 +863,49 @@ body {
   transition: var(--transition);
 }
 
-.btn-modal-submit:hover {
+.btn-modal-submit:hover:not(:disabled) {
   background: #34d399;
 }
+
+/* Botón deshabilitado en gris */
+.btn-modal-submit:disabled,
+.btn-modal-submit.btn-disabled {
+  background: #334155 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Caja de Estado de Verificación por IA */
+.tag-ia-status {
+  font-size: 0.78rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: 6px;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease;
+}
+
+.tag-ia-status.status-loading {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+.tag-ia-status.status-success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.tag-ia-status.status-error {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #fca5a5;
+}
+
 
 /* ==========================================================================
    FOOTER
@@ -1147,4 +1187,158 @@ body {
   padding: 32px;
   color: var(--text-subtle);
 }
+
+/* ==========================================================================
+   ADAPTACIÓN MOBILE Y RESPONSIVIDAD ULTRA-CUIDADA
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 12px 16px;
+  }
+
+  .header-container {
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .brand-logo {
+    font-size: 1rem;
+  }
+
+  .nav-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-subtle, .btn-nav-primary {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .app-main {
+    padding: 24px 16px 40px 16px;
+    gap: 24px;
+  }
+
+  .hero-title {
+    font-size: 1.6rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .search-box-wrapper {
+    padding: 4px 6px 4px 14px;
+  }
+
+  .search-input {
+    font-size: 0.92rem;
+  }
+
+  .btn-search {
+    padding: 8px 16px;
+    font-size: 0.88rem;
+  }
+
+  .stats-bar {
+    padding: 12px 16px;
+    gap: 12px;
+    justify-content: space-around;
+  }
+
+  .stat-number {
+    font-size: 1.1rem;
+  }
+
+  .stat-text {
+    font-size: 0.7rem;
+  }
+
+  .asset-card {
+    padding: 18px;
+  }
+
+  .asset-id {
+    font-size: 1.35rem;
+  }
+
+  .asset-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 540px) {
+  .header-container {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .brand-logo {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  .nav-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: 94vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .modal-body {
+    padding: 18px 16px;
+    gap: 16px;
+  }
+
+  .photos-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .upload-box-content {
+    height: 105px;
+  }
+
+  .modal-footer {
+    padding: 14px 16px;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .btn-modal-cancel, .btn-modal-submit {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
 

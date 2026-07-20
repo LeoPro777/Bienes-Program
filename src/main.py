@@ -330,9 +330,24 @@ async def post_logout():
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(key=auth.COOKIE_NAME)
     logger.info("Sesión cerrada correctamente.")
-    return response
+@app.post("/api/validar-etiqueta")
+async def api_validar_etiqueta(
+    numero_bien: str = Form(...),
+    foto_numero_bien: UploadFile = File(...)
+):
+    try:
+        bytes_foto_1 = await foto_numero_bien.read()
+        if not bytes_foto_1:
+            return JSONResponse({"exito": False, "mensaje": "No se recibió el archivo de imagen."})
+            
+        es_valido, motivo = await gemini_service.verificar_foto_numero_bien(bytes_foto_1, numero_bien)
+        return JSONResponse({"exito": es_valido, "mensaje": motivo})
+    except Exception as e:
+        logger.error(f"Error en endpoint /api/validar-etiqueta: {e}")
+        return JSONResponse({"exito": False, "mensaje": f"Error del servidor al procesar imagen: {str(e)}"})
 
 @app.post("/marcar-exitoso")
+
 async def post_marcar_exitoso(
     request: Request,
     log_id: str = Form(...),

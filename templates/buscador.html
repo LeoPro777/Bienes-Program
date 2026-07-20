@@ -290,12 +290,13 @@
               <div class="form-field">
                 <label class="field-label">📸 Foto 1: Etiqueta / Nº <span class="req">*</span></label>
                 <label class="upload-box" for="foto_numero_bien">
-                  <input type="file" id="foto_numero_bien" name="foto_numero_bien" accept="image/*" capture="environment" required onchange="previewPhoto(this, 'box-tag')">
+                  <input type="file" id="foto_numero_bien" name="foto_numero_bien" accept="image/*" capture="environment" required onchange="handleTagPhotoUpload(this)">
                   <div class="upload-box-content" id="box-tag">
                     <span class="upload-icon">📷</span>
                     <span class="upload-txt">Tomar Foto de Etiqueta</span>
                   </div>
                 </label>
+                <div id="tag-ia-status" class="tag-ia-status" style="display:none;"></div>
               </div>
 
               <div class="form-field">
@@ -318,11 +319,12 @@
 
           <div class="modal-footer">
             <button type="button" class="btn-modal-cancel" onclick="closeVerifyModal()">Cancelar</button>
-            <button type="submit" class="btn-modal-submit" id="btn-submit-verify">
-              <span class="btn-text">✓ Validar y Registrar Bien</span>
-              <span class="spinner" style="display:none;">⏳ Procesando imágenes... Espere...</span>
+            <button type="submit" class="btn-modal-submit btn-disabled" id="btn-submit-verify" disabled>
+              <span class="btn-text">✓ Enviar</span>
+              <span class="spinner" style="display:none;">⏳ Enviando... Espere...</span>
             </button>
           </div>
+
         </form>
       </div>
     </div>
@@ -424,7 +426,6 @@
       const modalOp = document.getElementById('modal-operator-id');
       if (modalOp) {
         modalOp.addEventListener('click', function(e) {
-          // Solo permitir cerrar haciendo clic afuera si ya tiene datos
           if (e.target === modalOp && localStorage.getItem('op_nombre')) {
             closeOperatorModal();
           }
@@ -443,6 +444,69 @@
       }
     }
 
+    function handleTagPhotoUpload(input) {
+      previewPhoto(input, 'box-tag');
+      
+      const submitBtn = document.getElementById('btn-submit-verify');
+      const statusBox = document.getElementById('tag-ia-status');
+      
+      // Deshabilitar botón enviar en gris por defecto mientras se verifica
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('btn-disabled');
+      }
+
+      if (!input.files || !input.files[0]) return;
+
+      if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.className = 'tag-ia-status status-loading';
+        statusBox.innerHTML = '⏳ Verificando coincidencia de etiqueta con IA... Espere...';
+      }
+
+      const formData = new FormData();
+      formData.append('foto_numero_bien', input.files[0]);
+      formData.append('numero_bien', '{{ resultado.numero_bien if resultado else "" }}');
+
+      fetch('/api/validar-etiqueta', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.exito) {
+          if (statusBox) {
+            statusBox.className = 'tag-ia-status status-success';
+            statusBox.innerHTML = '✓ ' + (data.mensaje || 'Etiqueta confirmada por la IA');
+          }
+          // Habilitar botón enviar al confirmar coincidencia
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-disabled');
+          }
+        } else {
+          if (statusBox) {
+            statusBox.className = 'tag-ia-status status-error';
+            statusBox.innerHTML = '❌ ' + (data.mensaje || 'Rechazada por la IA');
+          }
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('btn-disabled');
+          }
+        }
+      })
+      .catch(err => {
+        if (statusBox) {
+          statusBox.className = 'tag-ia-status status-error';
+          statusBox.innerHTML = '❌ Error de conexión al verificar etiqueta.';
+        }
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.classList.add('btn-disabled');
+        }
+      });
+    }
+
     function handleVerificationSubmit(e) {
       const hasData = checkOperatorData();
       if (!hasData) {
@@ -451,6 +515,10 @@
         return false;
       }
       const btn = document.getElementById('btn-submit-verify');
+      if (btn && btn.disabled) {
+        e.preventDefault();
+        return false;
+      }
       if (btn) {
         btn.disabled = true;
         btn.querySelector('.btn-text').style.display = 'none';
@@ -458,6 +526,7 @@
       }
     }
   </script>
+
 
   <footer class="app-footer">
     <div class="footer-container">
