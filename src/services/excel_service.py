@@ -132,6 +132,7 @@ async def procesar_archivo(file_bytes: bytes, filename: str) -> Tuple[List[Dict[
     col_mapping = {
         "item": ["item", "correlativo", "nº", "nro", "item_correlativo"],
         "numero_bien": ["numero_bien", "nº de bien", "nro de bien", "nro_bien", "nro bien", "numero de bien", "codigo", "código", "bien", "nº bien"],
+        "serial": ["serial", "seriales", "nº de serie", "nro de serie", "nro_serie", "nro serie", "numero_serie", "nº serie", "sn", "s/n"],
         "descripcion": ["descripcion", "descripción", "detalles", "detalle", "nombre", "activo"],
         "area_ubicacion": ["area_ubicacion", "área de ubicación", "ubicacion", "ubicación", "area", "área", "modulo", "módulo", "área de ubicacion"]
     }
@@ -173,12 +174,14 @@ async def procesar_archivo(file_bytes: bytes, filename: str) -> Tuple[List[Dict[
         # Extraer valores usando el mapeo resuelto
         raw_item = row.get(resolved_headers["item"]) if resolved_headers["item"] else None
         raw_num_bien = row.get(resolved_headers["numero_bien"]) if resolved_headers["numero_bien"] else None
+        raw_serial = row.get(resolved_headers["serial"]) if resolved_headers["serial"] else None
         raw_descripcion = row.get(resolved_headers["descripcion"]) if resolved_headers["descripcion"] else None
         raw_area = row.get(resolved_headers["area_ubicacion"]) if resolved_headers["area_ubicacion"] else None
         
         # Limpieza de campos
         item = clean_item_correlativo(raw_item)
         numero_bien = clean_numero_bien(raw_num_bien)
+        serial = clean_string(raw_serial)
         descripcion = clean_string(raw_descripcion)
         area_ubicacion = clean_string(raw_area)
         
@@ -214,10 +217,12 @@ async def procesar_archivo(file_bytes: bytes, filename: str) -> Tuple[List[Dict[
             documento = {
                 "item": item,
                 "numero_bien": numero_bien,
+                "serial": serial,
                 "descripcion": descripcion,
                 "area_ubicacion": area_ubicacion,
                 "fecha_carga": datetime.now(timezone.utc)
             }
+
             registros_validos.append(documento)
             
     return registros_validos, errores

@@ -162,9 +162,11 @@
             <tr>
               <th>Bien Buscado</th>
               <th>Fecha y Hora</th>
-              <th>Coincidencia</th>
-              <th>Dirección IP</th>
-              <th>User-Agent / Navegador</th>
+              <th>Estado / IA</th>
+              <th>Ubicación Encontrada</th>
+              <th>Operador Auditor (Nombre / Cédula)</th>
+              <th>Fotos Cloudinary</th>
+              <th>IP / Navegador</th>
             </tr>
           </thead>
           <tbody>
@@ -183,33 +185,57 @@
                   </td>
                   <td>
                     {% if log.coincidio %}
-                      <span class="status-badge status-match">ÉXITO</span>
+                      <span class="status-badge status-match">VERIFICADO IA</span>
                     {% else %}
                       <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="status-badge status-no-match">FALLIDO</span>
+                        <span class="status-badge status-no-match">PENDIENTE</span>
                         <form action="/admin/marcar-exitoso" method="post" style="display: inline-block; margin: 0;">
                           <input type="hidden" name="log_id" value="{{ log._id }}">
-                          <button type="submit" class="btn-admin-success" title="Marcar como exitoso">✓ Marcar</button>
+                          <button type="submit" class="btn-admin-success" title="Marcar exitoso manualmente">✓ Marcar</button>
                         </form>
                       </div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ log.ubicacion_encontrado or 'N/A' }}
+                    {% if log.detalles_hallazgo %}
+                      <br><small class="text-muted">Obs: {{ log.detalles_hallazgo }}</small>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if log.nombre_operador or log.cedula_operador %}
+                      <strong>{{ log.nombre_operador or 'Sin Nombre' }}</strong>
+                      <br><small class="font-monospace text-muted">{{ log.cedula_operador or 'Sin Cédula' }}</small>
+                    {% else %}
+                      <span class="text-muted font-monospace">{{ log.mac_address or 'No registrado' }}</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if log.url_foto_numero_bien and log.url_foto_numero_bien.startswith('http') %}
+                      <a href="{{ log.url_foto_numero_bien }}" target="_blank" class="img-link-badge">🏷️ Etiqueta</a>
+                    {% endif %}
+                    {% if log.url_foto_bien_completo and log.url_foto_bien_completo.startswith('http') %}
+                      <a href="{{ log.url_foto_bien_completo }}" target="_blank" class="img-link-badge">🖼️ Activo</a>
+                    {% endif %}
+                    {% if not log.url_foto_numero_bien and not log.url_foto_bien_completo %}
+                      <span class="text-muted">Sin fotos</span>
                     {% endif %}
                   </td>
                   <td class="cell-ip font-monospace">
                     {{ log.metadata_cliente.ip or 'Desconocida' }}
                   </td>
-                  <td class="cell-ua" title="{{ log.metadata_cliente.user_agent }}">
-                    {{ log.metadata_cliente.user_agent }}
-                  </td>
                 </tr>
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="5" class="table-empty">Sin consultas registradas en la bitácora aún.</td>
+                <td colspan="7" class="table-empty">Sin consultas registradas en la bitácora aún.</td>
               </tr>
             {% endif %}
           </tbody>
         </table>
       </div>
+
     </section>
   </main>
 

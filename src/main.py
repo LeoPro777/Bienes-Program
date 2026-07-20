@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from src import config, database, auth
-from src.services import excel_service
+from src.services import excel_service, cloudinary_service, gemini_service
 from bson import ObjectId, errors as bson_errors
 
 # Configuración del Logger
@@ -163,6 +163,7 @@ async def get_buscador(
 ):
     db = database.get_db()
     resultado = None
+    resultados_lista = []
     buscado = False
     error_busqueda = None
     
@@ -203,19 +204,45 @@ async def get_buscador(
     ya_marcado = request.query_params.get("marcado") == "true"
     log_id = None
 
-    # Procesar búsqueda
+    # Búsqueda inteligente:
+    # Si el término es numérico y de menos de 5 dígitos (< 5), busca específicamente por Nº DE BIEN.
+    # En caso contrario (>= 5 dígitos o texto con letras/guiones), busca en seriales y descripciones.
     if search_term:
         buscado = True
         try:
-            # Consulta exacta contra la colección bienes
-            resultado = await db.bienes.find_one({"numero_bien": search_term})
+            is_bien_num = search_term.isdigit() and len(search_term) < 5
+            
+            if is_bien_num:
+                query = {
+                    "$or": [
+                        {"numero_bien": search_term},
+                        {"numero_bien": {"$regex": f"^{re.escape(search_term)}$", "$options": "i"}}
+                    ]
+                }
+            else:
+                query = {
+                    "$or": [
+                        {"serial": search_term},
+                        {"serial": {"$regex": re.escape(search_term), "$options": "i"}},
+                        {"descripcion": {"$regex": re.escape(search_term), "$options": "i"}}
+                    ]
+                }
+            
+            cursor_bienes = db.bienes.find(query).limit(50)
+            resultados_lista = await cursor_bienes.to_list(length=50)
+            
+            for b in resultados_lista:
+                b["_id"] = str(b["_id"])
+                
+            if resultados_lista:
+                resultado = resultados_lista[0]
+            else:
+                resultado = None
+
             
             skip_log = request.query_params.get("skip_log") == "true"
             
             if not skip_log:
-                # Registrar auditoría obligatoriamente en segundo plano
-                # Por requerimiento, inicialmente se guarda como coincidio = False (no exitoso)
-                # hasta que el operador señale el bien marcado mediante el botón.
                 log_doc = {
                     "valor_buscado": search_term,
                     "fecha_consulta": datetime.now(timezone.utc),
@@ -226,7 +253,6 @@ async def get_buscador(
                     }
                 }
                 
-                # VETO-01: Prohibido omitir el guardado en el historial bajo cualquier condición
                 try:
                     insert_result = await db.historial_consultas.insert_one(log_doc)
                     log_id = str(insert_result.inserted_id)
@@ -238,10 +264,6 @@ async def get_buscador(
                     )
             else:
                 log_id = request.query_params.get("log_id")
-                
-            # Formatear ID a string
-            if resultado:
-                resultado["_id"] = str(resultado["_id"])
                 
         except HTTPException as he:
             raise he
@@ -255,6 +277,7 @@ async def get_buscador(
             "request": request,
             "numero_bien": search_term,
             "resultado": resultado,
+            "resultados_lista": resultados_lista,
             "buscado": buscado,
             "error_busqueda": error_busqueda,
             "exito": exito,
@@ -313,33 +336,99 @@ async def post_logout():
 async def post_marcar_exitoso(
     request: Request,
     log_id: str = Form(...),
-    numero_bien: str = Form(...)
+    numero_bien: str = Form(...),
+    ubicacion_encontrado: str = Form(...),
+    detalles: str = Form(None),
+    cedula: str = Form(None),
+    nombre_apellido: str = Form(None),
+    foto_numero_bien: UploadFile = File(...),
+    foto_bien_completo: UploadFile = File(...)
 ):
+    import urllib.parse
     db = database.get_db()
+    
     try:
+        bytes_foto_1 = await foto_numero_bien.read()
+        bytes_foto_2 = await foto_bien_completo.read()
+        
+        if not bytes_foto_1 or not bytes_foto_2:
+            msg_err = urllib.parse.quote("Debe adjuntar ambas fotografías (foto del número de bien y foto del bien completo).")
+            return RedirectResponse(
+                url=f"/?numero_bien={numero_bien}&error={msg_err}&skip_log=true&log_id={log_id}",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+            
+        # 1. Verificación de Foto 1 (Número de bien) mediante la API de Gemini
+        es_valido_ia, detalle_ia = await gemini_service.verificar_foto_numero_bien(bytes_foto_1, numero_bien)
+        if not es_valido_ia:
+            logger.warning(f"Rechazo de verificación por IA para el bien {numero_bien}: {detalle_ia}")
+            msg_err = urllib.parse.quote(f"Rechazado por verificación de IA: {detalle_ia}")
+            return RedirectResponse(
+                url=f"/?numero_bien={numero_bien}&error={msg_err}&skip_log=true&log_id={log_id}",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+            
+        # 2. Subida de fotos a Cloudinary
+        url_foto_1 = None
+        url_foto_2 = None
+        try:
+            url_foto_1 = await cloudinary_service.upload_image_bytes(bytes_foto_1, folder="bienes_etiquetas")
+            url_foto_2 = await cloudinary_service.upload_image_bytes(bytes_foto_2, folder="bienes_completos")
+        except Exception as cloud_err:
+            logger.error(f"Error subiendo imágenes a Cloudinary: {cloud_err}")
+            
+        url_foto_1 = url_foto_1 or "Sin URL remota (Cloudinary sin configurar)"
+        url_foto_2 = url_foto_2 or "Sin URL remota (Cloudinary sin configurar)"
+        
+        # 3. Guardar verificación en la bitácora de auditoría
         obj_id = ObjectId(log_id)
-        result = await db.historial_consultas.update_one(
+        update_data = {
+            "coincidio": True,
+            "ubicacion_encontrado": ubicacion_encontrado,
+            "url_foto_numero_bien": url_foto_1,
+            "url_foto_bien_completo": url_foto_2,
+            "detalles_hallazgo": detalles,
+            "cedula_operador": cedula or "Sin Cédula",
+            "nombre_operador": nombre_apellido or "Sin Nombre",
+            "fecha_verificacion": datetime.now(timezone.utc),
+            "verificacion_ia": detalle_ia
+        }
+        
+        await db.historial_consultas.update_one(
             {"_id": obj_id},
-            {"$set": {"coincidio": True}}
+            {"$set": update_data}
         )
-        if result.modified_count > 0:
-            logger.info(f"Registro de consulta {log_id} para bien {numero_bien} marcado como exitoso.")
-            return RedirectResponse(
-                url=f"/?numero_bien={numero_bien}&exito=El+bien+Nº+{numero_bien}+ha+sido+marcado+como+exitoso&skip_log=true&marcado=true",
-                status_code=status.HTTP_303_SEE_OTHER
-            )
-        else:
-            logger.warning(f"No se modificó el registro {log_id} (tal vez ya era exitoso).")
-            return RedirectResponse(
-                url=f"/?numero_bien={numero_bien}&exito=El+bien+Nº+{numero_bien}+ya+estaba+marcado+como+exitoso&skip_log=true&marcado=true",
-                status_code=status.HTTP_303_SEE_OTHER
-            )
-    except Exception as e:
-        logger.error(f"Error al marcar consulta como exitosa: {e}")
+        
+        # Actualizar estado actual del bien
+        await db.bienes.update_one(
+            {"numero_bien": numero_bien},
+            {"$set": {
+                "verificado": True,
+                "ubicacion_actual": ubicacion_encontrado,
+                "foto_etiqueta": url_foto_1,
+                "foto_completo": url_foto_2,
+                "ultimas_observaciones": detalles,
+                "ultimo_operador_cedula": cedula or "Sin Cédula",
+                "ultimo_operador_nombre": nombre_apellido or "Sin Nombre"
+            }}
+        )
+
+        
+        logger.info(f"Bien Nº {numero_bien} verificado exitosamente por IA y guardado en Cloudinary.")
+        msg_exito = urllib.parse.quote(f"¡El bien Nº {numero_bien} fue verificado con éxito por la IA y registrado correctamente!")
         return RedirectResponse(
-            url=f"/?numero_bien={numero_bien}&error=Error+al+marcar+el+bien+como+exitoso&skip_log=true",
+            url=f"/?numero_bien={numero_bien}&exito={msg_exito}&skip_log=true&marcado=true&log_id={log_id}",
             status_code=status.HTTP_303_SEE_OTHER
         )
+        
+    except Exception as e:
+        logger.error(f"Error general en verificación de bien {numero_bien}: {e}")
+        msg_err = urllib.parse.quote(f"Error interno al procesar la verificación: {str(e)}")
+        return RedirectResponse(
+            url=f"/?numero_bien={numero_bien}&error={msg_err}&skip_log=true&log_id={log_id}",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
 
 @app.post("/admin/marcar-exitoso")
 async def post_admin_marcar_exitoso(

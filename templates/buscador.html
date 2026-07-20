@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buscador de Activos e Historial de Auditoría</title>
 
-  <meta name="description" content="Plataforma ultra-ligera y de alta velocidad para la localización y auditoría en sitio de activos físicos institucionales.">
+  <meta name="description" content="Plataforma de alta velocidad para localización y auditoría de activos físicos institucionales.">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=1.0.5">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=1.0.6">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <script>
     function applyTextSize() {
@@ -40,173 +40,433 @@
 </head>
 <body>
 
-  <header>
-    <div class="header-top">
-      <a href="/" class="logo">
-        <span class="logo-icon"></span>
-        Control de Bienes
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/" class="brand-logo">
+        <span class="logo-dot"></span>
+        <span class="brand-name">Control de Bienes</span>
       </a>
       <div class="nav-actions">
-        <button onclick="toggleTextSize()" class="btn-nav btn-accessibility" id="btn-size-toggle">🔍 Texto Grande</button>
+        <button type="button" class="btn-subtle" id="header-op-btn" onclick="openOperatorModal()">👤 Registrar Operador</button>
+        <button onclick="toggleTextSize()" class="btn-subtle" id="btn-size-toggle">🔍 Texto Grande</button>
         {% if autenticado %}
-          <a href="/admin" class="btn-nav">Panel Admin</a>
+          <a href="/admin" class="btn-subtle">Panel Admin</a>
           <form action="/logout" method="post" style="display:inline;">
-            <button type="submit" class="btn-nav btn-logout">Cerrar Sesión</button>
+            <button type="submit" class="btn-subtle btn-logout">Cerrar Sesión</button>
           </form>
         {% else: %}
-          <a href="/login" class="btn-nav btn-login">Acceso Operador</a>
+          <a href="/login" class="btn-nav-primary">Acceso Operador Admin</a>
         {% endif %}
       </div>
     </div>
   </header>
 
-  <main>
-    <section class="search-box">
-      <h1 class="main-title">Verificación de Activos Físicos</h1>
-      <p class="subtitle">
-        Ingrese el identificador del activo para verificar su ubicación y registrar la auditoría en tiempo real.
+  <main class="app-main">
+    <!-- Sección del Buscador Principal -->
+    <section class="hero-search">
+      <h1 class="hero-title">Verificación de Activos Físicos</h1>
+      <p class="hero-subtitle">
+        Ingrese el número de bien, descripción o serial para consultar el inventario y auditar la ubicación.
       </p>
       
       <form action="/" method="get" class="search-form">
-        <div class="search-input-wrapper">
+        <div class="search-box-wrapper">
+          <span class="search-icon">🔍</span>
           <input 
             type="text" 
             name="numero_bien" 
             class="search-input" 
-            placeholder="Ingrese el Nº DE BIEN (Ej. 8, 45, etc.)" 
+            placeholder="Nº de Bien (< 5 dígitos) o Descripción / Serial..." 
             value="{{ numero_bien or '' }}"
             required
             autocomplete="off"
             autofocus
           >
+          <button type="submit" class="btn-search">Buscar</button>
         </div>
-        <button type="submit" class="btn-search">Verificar Bien</button>
       </form>
     </section>
 
-    <!-- Grid de Estadísticas Dinámicas -->
-    <div class="stats-grid">
-      <div class="stat-card stat-registrados">
-        <div class="stat-value">{{ total_bienes }}</div>
-        <div class="stat-label">Bienes Inventariados</div>
+    <!-- Indicadores / Estadísticas Resumidas -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-number">{{ total_bienes }}</span>
+        <span class="stat-text">Bienes Inventariados</span>
       </div>
-      <div class="stat-card stat-actualizacion">
-        <div class="stat-value">{{ porcentaje_coincidencia }}%</div>
-        <div class="stat-label">Coincidencia Histórica</div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-number">{{ porcentaje_coincidencia }}%</span>
+        <span class="stat-text">Coincidencia Auditoría</span>
       </div>
-      <div class="stat-card stat-hospitales">
-        <div class="stat-value">{{ total_consultas }}</div>
-        <div class="stat-label">Consultas Auditadas</div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-number">{{ total_consultas }}</span>
+        <span class="stat-text">Consultas Realizadas</span>
       </div>
     </div>
 
-    <!-- Alertas de Éxito / Error -->
+    <!-- Mensajes y Alertas -->
     {% if exito %}
-      <div class="alert alert-success">
-        <strong>✓ Éxito:</strong> {{ exito }}
+      <div class="toast toast-success">
+        <span class="toast-icon">✓</span>
+        <div class="toast-body">{{ exito }}</div>
       </div>
     {% endif %}
     {% if error_msg %}
-      <div class="alert alert-error">
-        <strong>⚠ Error:</strong> {{ error_msg }}
+      <div class="toast toast-error">
+        <span class="toast-icon">⚠</span>
+        <div class="toast-body">{{ error_msg }}</div>
       </div>
     {% endif %}
     {% if error_busqueda %}
-      <div class="alert alert-error">
-        {{ error_busqueda }}
+      <div class="toast toast-error">
+        <span class="toast-icon">⚠</span>
+        <div class="toast-body">{{ error_busqueda }}</div>
       </div>
     {% endif %}
 
-    <!-- Contenedor de Resultados -->
-    <div class="results-container">
+    <!-- Resultados -->
+    <div class="results-area">
       {% if buscado and not error_busqueda %}
+        {% if resultados_lista and resultados_lista|length > 1 %}
+          <div class="multi-results-container">
+            <h3 class="multi-results-header">Coincidencias encontradas ({{ resultados_lista|length }})</h3>
+            <div class="multi-results-grid">
+              {% for item_b in resultados_lista %}
+                <a href="/?numero_bien={{ item_b.numero_bien }}&skip_log=true" class="multi-item-card {% if item_b.numero_bien == resultado.numero_bien %}selected{% endif %}">
+                  <div class="multi-item-top">
+                    <span class="multi-item-num">Nº {{ item_b.numero_bien }}</span>
+                    {% if item_b.serial %}<span class="multi-item-serial">S/N: {{ item_b.serial }}</span>{% endif %}
+                  </div>
+                  <div class="multi-item-desc">{{ item_b.descripcion }}</div>
+                  <div class="multi-item-loc">📍 {{ item_b.area_ubicacion }}</div>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
         {% if resultado %}
-          <div class="card result-card-success">
-            <div class="card-header">
-              <div class="patient-name">
-                Bien Nº {{ resultado.numero_bien }}
+          <div class="asset-card">
+            <div class="asset-card-header">
+              <div class="asset-title-group">
+                <span class="asset-badge">Activo Físico</span>
+                <h2 class="asset-id">Bien Nº {{ resultado.numero_bien }}</h2>
               </div>
-              <span class="status-badge status-match">Registrado</span>
+              <span class="status-pill status-registered">Registrado</span>
             </div>
             
-            <div class="card-details">
-               {% if resultado.item is not none %}
-                 <div class="detail-row">
-                   <span class="detail-title">ITEM:</span>
-                   <span class="detail-val">#{{ resultado.item }}</span>
-                 </div>
-               {% endif %}
-               
-               <div class="detail-row">
-                 <span class="detail-title">ÁREA DE UBICACIÓN:</span>
-                 <span class="detail-val highlight-location">{{ resultado.area_ubicacion }}</span>
-               </div>
-               
-               <div class="detail-row">
-                 <span class="detail-title">DESCRIPCIÓN:</span>
-                 <span class="detail-val">{{ resultado.descripcion }}</span>
-               </div>
+            <div class="asset-info-grid">
+              {% if resultado.item is not none %}
+                <div class="info-cell">
+                  <span class="info-label">Ítem:</span>
+                  <span class="info-value">#{{ resultado.item }}</span>
+                </div>
+              {% endif %}
+              
+              {% if resultado.serial %}
+                <div class="info-cell">
+                  <span class="info-label">Número de Serie:</span>
+                  <span class="info-value font-mono">{{ resultado.serial }}</span>
+                </div>
+              {% endif %}
+
+              <div class="info-cell">
+                <span class="info-label">Área Registrada:</span>
+                <span class="info-value highlight">{{ resultado.area_ubicacion }}</span>
+              </div>
+              
+              <div class="info-cell full-width">
+                <span class="info-label">Descripción:</span>
+                <span class="info-value">{{ resultado.descripcion }}</span>
+              </div>
             </div>
 
-            {% if ya_marcado %}
-              <div class="verification-status-box">
-                <span>✓ Este bien ha sido verificado en la auditoría con éxito.</span>
-              </div>
-            {% elif log_id %}
-              <form action="/marcar-exitoso" method="post" class="mark-form" style="width: 100%;">
-                <input type="hidden" name="log_id" value="{{ log_id }}">
-                <input type="hidden" name="numero_bien" value="{{ resultado.numero_bien }}">
-                <button type="submit" class="btn-success">
-                  ✓ Señalar como Bien Marcado
+            <div class="asset-card-actions">
+              {% if ya_marcado %}
+                <div class="status-verified-box">
+                  <span class="verified-icon">✓</span>
+                  <span>Bien verificado en sitio y auditado por IA</span>
+                </div>
+              {% elif log_id %}
+                <button type="button" class="btn-action-primary" onclick="openVerifyModal()">
+                  <span>📋 Señalar y Verificar Bien Encontrado</span>
                 </button>
-              </form>
-            {% endif %}
+              {% endif %}
+            </div>
             
-            <div class="audit-badge-footer">
-              <span class="pulse-indicator"></span> Consulta registrada de forma inmutable en la bitácora de auditoría.
+            <div class="asset-card-footer">
+              <span class="dot-live"></span> Auditoría registrada atómicamente en bitácora.
             </div>
           </div>
         {% else %}
-          <div class="card result-card-fail">
-            <div class="card-header">
-              <div class="patient-name text-error">
-                Activo No Registrado
-              </div>
-              <span class="status-badge status-no-match">Inexistente</span>
+          <div class="asset-card card-not-found">
+            <div class="asset-card-header">
+              <h2 class="asset-id text-error">Activo No Registrado</h2>
+              <span class="status-pill status-missing">Inexistente</span>
             </div>
-            
-            <div class="card-details">
-              <div class="alert-fail-box">
-                <p><strong>El Nº de Bien "{{ numero_bien }}" no se encuentra en la base de datos de activos.</strong></p>
-                <p class="fail-explanation">
-                  Esta consulta ha sido capturada por el sistema de seguridad e inyectada automáticamente en el historial de auditoría con propósitos de rastreo y bitácora de control.
-                </p>
-              </div>
-            </div>
-            
-            <div class="audit-badge-footer">
-              <span class="pulse-indicator pulse-fail"></span> Evento de búsqueda reportado e insertado atómicamente.
+            <div class="not-found-body">
+              <p>El código o bien <strong>"{{ numero_bien }}"</strong> no se encuentra en el inventario actual.</p>
+              <p class="not-found-sub">Esta consulta fue inyectada automáticamente en la bitácora de control por seguridad.</p>
             </div>
           </div>
         {% endif %}
       {% elif not buscado %}
-        <div class="welcome-box">
-          <div class="welcome-icon">📋</div>
+        <div class="empty-state">
+          <div class="empty-icon">📂</div>
           <h2>Consulte el Inventario General</h2>
           <p>
-            Introduzca el número de bien en el buscador superior. Cada consulta realizada es registrada y enlazada de forma inmutable con su dirección IP y metadatos de sesión por motivos de auditoría institucional.
+            Ingrese el número de bien, descripción o serial en la caja de búsqueda superior.
           </p>
         </div>
       {% endif %}
     </div>
   </main>
 
-  <footer>
-    <div class="footer-content">
-        <p class="hope-message">"Trazabilidad garantizada para el resguardo de activos."</p>
-        <p class="footer-info">© 2026 Sistema de Control de Bienes e Historial de Auditorías · Monolito Resiliente</p>
+  <!-- MODAL DE IDENTIFICACIÓN DE OPERADOR (LOGIN INICIAL) -->
+  <div class="modal-backdrop" id="modal-operator-id">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🪪 Identificación del Operador</h3>
+          <p class="modal-subtitle">Ingrese su nombre y cédula para registrar la autoría en las auditorías.</p>
+        </div>
+      </div>
+      <form id="form-operator-login" onsubmit="saveOperatorData(event)">
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="op_nombre_input" class="field-label">👤 Nombre y Apellido <span class="req">*</span></label>
+            <input type="text" id="op_nombre_input" class="input-control" placeholder="Ej: Juan Pérez" required>
+          </div>
+          <div class="form-field">
+            <label for="op_cedula_input" class="field-label">🪪 Cédula de Identidad <span class="req">*</span></label>
+            <input type="text" id="op_cedula_input" class="input-control font-mono" placeholder="Ej: V-12345678" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-modal-submit" style="width: 100%;">Guardar e Ingresar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE VERIFICACIÓN Y REGISTRO EN SITIO -->
+  {% if log_id and resultado and not ya_marcado %}
+    <div class="modal-backdrop" id="modal-verification">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Verificación de Bien Nº {{ resultado.numero_bien }}</h3>
+            <p class="modal-subtitle">Ingrese la ubicación y tome las fotografías correspondientes en el sitio.</p>
+          </div>
+          <button type="button" class="btn-close-modal" onclick="closeVerifyModal()">✕</button>
+        </div>
+
+        <form action="/marcar-exitoso" method="post" enctype="multipart/form-data" onsubmit="handleVerificationSubmit(event)">
+          <input type="hidden" name="log_id" value="{{ log_id }}">
+          <input type="hidden" name="numero_bien" value="{{ resultado.numero_bien }}">
+          <input type="hidden" name="cedula" id="field_cedula">
+          <input type="hidden" name="nombre_apellido" id="field_nombre">
+
+          <div class="modal-body">
+            <!-- Operador Activo Badge -->
+            <div class="operator-badge-box">
+              <div class="operator-badge-info">
+                <span class="op-icon">👤</span>
+                <div>
+                  <span class="op-label">Operador Auditor:</span>
+                  <strong id="display-op-info" class="op-val">Cargando...</strong>
+                </div>
+              </div>
+              <button type="button" class="btn-edit-op" onclick="openOperatorModal()">✏️ Cambiar</button>
+            </div>
+
+            <div class="form-field">
+              <label for="ubicacion_encontrado" class="field-label">📍 ¿Dónde se encontró el bien? <span class="req">*</span></label>
+              <input type="text" id="ubicacion_encontrado" name="ubicacion_encontrado" class="input-control" placeholder="Ej: Depósito Central - Estante A2, Oficina 304..." required>
+            </div>
+
+            <div class="photos-grid">
+              <div class="form-field">
+                <label class="field-label">📸 Foto 1: Etiqueta / Nº <span class="req">*</span></label>
+                <label class="upload-box" for="foto_numero_bien">
+                  <input type="file" id="foto_numero_bien" name="foto_numero_bien" accept="image/*" capture="environment" required onchange="previewPhoto(this, 'box-tag')">
+                  <div class="upload-box-content" id="box-tag">
+                    <span class="upload-icon">📷</span>
+                    <span class="upload-txt">Tomar Foto de Etiqueta</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label">🖼️ Foto 2: Bien Completo <span class="req">*</span></label>
+                <label class="upload-box" for="foto_bien_completo">
+                  <input type="file" id="foto_bien_completo" name="foto_bien_completo" accept="image/*" capture="environment" required onchange="previewPhoto(this, 'box-full')">
+                  <div class="upload-box-content" id="box-full">
+                    <span class="upload-icon">📷</span>
+                    <span class="upload-txt">Tomar Foto Panorámica</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="detalles" class="field-label">📝 Observaciones o Detalles (Opcional):</label>
+              <textarea id="detalles" name="detalles" class="input-control textarea-control" rows="2" placeholder="Estado del bien, detalles u observaciones..."></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" onclick="closeVerifyModal()">Cancelar</button>
+            <button type="submit" class="btn-modal-submit" id="btn-submit-verify">
+              <span class="btn-text">✓ Validar y Registrar Bien</span>
+              <span class="spinner" style="display:none;">⏳ Procesando imágenes... Espere...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <script>
+    function checkOperatorData() {
+      const nombre = localStorage.getItem('op_nombre');
+      const cedula = localStorage.getItem('op_cedula');
+      
+      const headerBtn = document.getElementById('header-op-btn');
+      const fieldNombre = document.getElementById('field_nombre');
+      const fieldCedula = document.getElementById('field_cedula');
+      const displayInfo = document.getElementById('display-op-info');
+
+      if (nombre && cedula) {
+        if (headerBtn) headerBtn.textContent = '👤 ' + nombre + ' (' + cedula + ')';
+        if (fieldNombre) fieldNombre.value = nombre;
+        if (fieldCedula) fieldCedula.value = cedula;
+        if (displayInfo) displayInfo.textContent = nombre + ' (' + cedula + ')';
+        return true;
+      } else {
+        if (headerBtn) headerBtn.textContent = '👤 Registrar Operador';
+        return false;
+      }
+    }
+
+    function openOperatorModal() {
+      const modal = document.getElementById('modal-operator-id');
+      const nombreInput = document.getElementById('op_nombre_input');
+      const cedulaInput = document.getElementById('op_cedula_input');
+      
+      if (nombreInput) nombreInput.value = localStorage.getItem('op_nombre') || '';
+      if (cedulaInput) cedulaInput.value = localStorage.getItem('op_cedula') || '';
+      
+      if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeOperatorModal() {
+      const modal = document.getElementById('modal-operator-id');
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function saveOperatorData(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('op_nombre_input').value.trim();
+      const cedula = document.getElementById('op_cedula_input').value.trim();
+      
+      if (nombre && cedula) {
+        localStorage.setItem('op_nombre', nombre);
+        localStorage.setItem('op_cedula', cedula);
+        checkOperatorData();
+        closeOperatorModal();
+      }
+    }
+
+    function openVerifyModal() {
+      const hasData = checkOperatorData();
+      if (!hasData) {
+        openOperatorModal();
+        return;
+      }
+      const modal = document.getElementById('modal-verification');
+      if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeVerifyModal() {
+      const modal = document.getElementById('modal-verification');
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const hasData = checkOperatorData();
+      if (!hasData) {
+        openOperatorModal();
+      }
+
+      const modalVerify = document.getElementById('modal-verification');
+      if (modalVerify) {
+        modalVerify.addEventListener('click', function(e) {
+          if (e.target === modalVerify) {
+            closeVerifyModal();
+          }
+        });
+      }
+
+      const modalOp = document.getElementById('modal-operator-id');
+      if (modalOp) {
+        modalOp.addEventListener('click', function(e) {
+          // Solo permitir cerrar haciendo clic afuera si ya tiene datos
+          if (e.target === modalOp && localStorage.getItem('op_nombre')) {
+            closeOperatorModal();
+          }
+        });
+      }
+    });
+
+    function previewPhoto(input, boxId) {
+      const box = document.getElementById(boxId);
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          box.innerHTML = '<img src="' + e.target.result + '" class="preview-img-modal" alt="Foto"><span class="change-photo-txt">🔄 Cambiar</span>';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function handleVerificationSubmit(e) {
+      const hasData = checkOperatorData();
+      if (!hasData) {
+        e.preventDefault();
+        openOperatorModal();
+        return false;
+      }
+      const btn = document.getElementById('btn-submit-verify');
+      if (btn) {
+        btn.disabled = true;
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.spinner').style.display = 'inline-block';
+      }
+    }
+  </script>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>© 2026 Sistema de Control de Bienes · Trazabilidad y Auditoría Institucional</p>
     </div>
   </footer>
 
 </body>
 </html>
+
+
+

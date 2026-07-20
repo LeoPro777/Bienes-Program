@@ -6,3 +6,5 @@ openpyxl==3.1.2
 pyjwt==2.8.0
 python-multipart==0.0.9
 python-dotenv==1.0.1
+cloudinary>=1.41.0
+google-genai>=0.1.1
