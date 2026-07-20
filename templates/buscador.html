@@ -269,17 +269,12 @@
           <input type="hidden" name="nombre_apellido" id="field_nombre">
 
           <div class="modal-body">
-            <!-- Operador Activo Badge -->
-            <div class="operator-badge-box">
-              <div class="operator-badge-info">
-                <span class="op-icon">👤</span>
-                <div>
-                  <span class="op-label">Operador Auditor:</span>
-                  <strong id="display-op-info" class="op-val">Cargando...</strong>
-                </div>
-              </div>
-              <button type="button" class="btn-edit-op" onclick="openOperatorModal()">✏️ Cambiar</button>
+            <!-- Operador Activo (Bloqueado / Read-only) -->
+            <div class="operator-badge-box-compact">
+              <span>👤 Operador: <strong id="display-op-info">Cargando...</strong></span>
+              <span class="badge-locked">🔒 Registrado</span>
             </div>
+
 
             <div class="form-field">
               <label for="ubicacion_encontrado" class="field-label">📍 ¿Dónde se encontró el bien? <span class="req">*</span></label>
@@ -302,7 +297,7 @@
               <div class="form-field">
                 <label class="field-label">🖼️ Foto 2: Bien Completo <span class="req">*</span></label>
                 <label class="upload-box" for="foto_bien_completo">
-                  <input type="file" id="foto_bien_completo" name="foto_bien_completo" accept="image/*" capture="environment" required onchange="previewPhoto(this, 'box-full')">
+                  <input type="file" id="foto_bien_completo" name="foto_bien_completo" accept="image/*" capture="environment" required onchange="previewPhoto(this, 'box-full', 'Tomar Foto Panorámica')">
                   <div class="upload-box-content" id="box-full">
                     <span class="upload-icon">📷</span>
                     <span class="upload-txt">Tomar Foto Panorámica</span>
@@ -433,19 +428,21 @@
       }
     });
 
-    function previewPhoto(input, boxId) {
+    function previewPhoto(input, boxId, defaultLabel) {
       const box = document.getElementById(boxId);
       if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          box.innerHTML = '<img src="' + e.target.result + '" class="preview-img-modal" alt="Foto"><span class="change-photo-txt">🔄 Cambiar</span>';
-        };
-        reader.readAsDataURL(input.files[0]);
+        box.classList.add('has-photo');
+        box.innerHTML = '<span class="upload-icon-success">✓</span> <span class="upload-txt-success">Foto Capturada</span> <span class="change-photo-sm">🔄 Reemplazar</span>';
+      } else {
+        box.classList.remove('has-photo');
+        box.innerHTML = '<span class="upload-icon">📷</span> <span class="upload-txt">' + (defaultLabel || 'Tomar Foto') + '</span>';
       }
     }
 
+
     function handleTagPhotoUpload(input) {
-      previewPhoto(input, 'box-tag');
+      previewPhoto(input, 'box-tag', 'Tomar Foto de Etiqueta');
+
       
       const submitBtn = document.getElementById('btn-submit-verify');
       const statusBox = document.getElementById('tag-ia-status');

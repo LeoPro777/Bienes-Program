@@ -624,62 +624,40 @@ body {
   max-width: 440px;
 }
 
-.operator-badge-box {
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+.operator-badge-box-compact {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  padding: 12px 16px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.operator-badge-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.op-icon {
-  font-size: 1.2rem;
-}
-
-.op-label {
-  font-size: 0.75rem;
-  color: var(--text-subtle);
-  display: block;
-}
-
-.op-val {
-  font-size: 0.9rem;
+.operator-badge-box-compact strong {
   color: var(--accent-sky);
+  font-weight: 600;
 }
 
-.btn-edit-op {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--text-muted);
-  padding: 4px 10px;
+.badge-locked {
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.btn-edit-op:hover {
-  background: var(--card-bg-hover);
-  color: var(--text-main);
 }
 
 .modal-header {
-  padding: 20px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--card-border);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
 }
-
 
 .modal-title {
   font-family: var(--font-display);
@@ -709,12 +687,29 @@ body {
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 24px;
   overflow-y: auto;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.35) transparent;
 }
+
+.modal-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+  border-radius: 4px;
+}
+
 
 .form-field {
   display: flex;
@@ -782,19 +777,25 @@ body {
 }
 
 .upload-box-content {
-  border: 2px dashed rgba(99, 102, 241, 0.3);
+  border: 1.5px dashed rgba(99, 102, 241, 0.3);
   border-radius: var(--radius-sm);
   background: rgba(99, 102, 241, 0.03);
-  padding: 16px;
+  padding: 8px 14px;
   text-align: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 115px;
+  gap: 8px;
+  height: 52px;
   transition: var(--transition);
   box-sizing: border-box;
+}
+
+.upload-box-content.has-photo {
+  border-style: solid;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
 }
 
 .upload-box:hover .upload-box-content {
@@ -803,14 +804,34 @@ body {
 }
 
 .upload-icon {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
 .upload-txt {
   font-size: 0.82rem;
   color: var(--accent-sky);
-  font-weight: 500;
+  font-weight: 600;
 }
+
+.upload-icon-success {
+  font-size: 1.1rem;
+  color: #34d399;
+  font-weight: bold;
+}
+
+.upload-txt-success {
+  font-size: 0.82rem;
+  color: #34d399;
+  font-weight: 600;
+}
+
+.change-photo-sm {
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  margin-left: auto;
+  text-decoration: underline;
+}
+
 
 
 .preview-img-modal {
@@ -1301,44 +1322,49 @@ body {
   }
 
   .modal-backdrop {
-    padding: 12px;
-    align-items: flex-end;
+    padding: 10px;
+    align-items: center;
+    justify-content: center;
   }
 
   .modal-card {
-    max-height: 94vh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 96vh;
+    border-radius: var(--radius-lg);
   }
 
   .modal-header {
-    padding: 16px 18px;
+    padding: 12px 16px;
   }
 
   .modal-body {
-    padding: 18px 16px;
-    gap: 16px;
+    padding: 14px 16px;
+    gap: 10px;
   }
 
   .photos-grid {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 10px;
   }
 
   .upload-box-content {
-    height: 105px;
+    height: 48px;
+    padding: 6px 12px;
   }
 
   .modal-footer {
-    padding: 14px 16px;
-    flex-direction: column-reverse;
+    padding: 12px 16px;
+    flex-direction: row;
     gap: 8px;
   }
 
   .btn-modal-cancel, .btn-modal-submit {
-    width: 100%;
+    flex: 1;
     text-align: center;
     justify-content: center;
+    padding: 10px 14px;
+    font-size: 0.85rem;
   }
 }
+
 
 
